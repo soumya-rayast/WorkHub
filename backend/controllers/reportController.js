@@ -44,7 +44,7 @@ const exportTasksReport = async (req, res) => {
         );
         res.setHeader(
             "Content-Disposition",
-            'attachments; filename=tasks_report.xlsx');
+            'attachment; filename=tasks_report.xlsx');
 
         return workBook.xlsx.write(res).then(() => {
             res.end();
@@ -59,7 +59,7 @@ const exportTasksReport = async (req, res) => {
 // @access Private (Admin)
 const exportUsersReport = async (req, res) => {
     try {
-        const users = await Use.find().select('name email _id').lena();
+        const users = await User.find().select('name email _id').lean();
         const userTasks = await Task.find().populate(
             'assignedTo',
             "name email _id"
@@ -96,9 +96,9 @@ const exportUsersReport = async (req, res) => {
         const worksheet = workbook.addWorksheet('User task Report');
 
         worksheet.columns = [
-            { headers: 'User Name', key: "name", width: 30 },
-            { headers: 'Email', key: "email", width: 40 },
-            { headers: 'Total Assigned tasks', key: "taskCount", width: 20 },
+            { header: 'User Name', key: "name", width: 30 },
+            { header: 'Email', key: "email", width: 40 },
+            { header: 'Total Assigned tasks', key: "taskCount", width: 20 },
             {
                 header: 'In Progress Tasks',
                 key: 'inProgressTasks',
@@ -116,13 +116,13 @@ const exportUsersReport = async (req, res) => {
         );
         res.setHeader(
             "Content-Disposition",
-            'attachments; filename=users_report.xlsx');
+            'attachment; filename=users_report.xlsx');
             
-        return workBook.xlsx.write(res).then(() => {
+        return workbook.xlsx.write(res).then(() => {
             res.end();
         })
     } catch (error) {
-        res.status(500).json({ message: 'Error exporting tasks', error: error.message })
+        res.status(500).json({ message: 'Error exporting users', error: error.message })
     }
 };
 

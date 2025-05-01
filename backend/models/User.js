@@ -10,15 +10,20 @@ const UserSchema = new mongoose(
             type: String,
             required: true,
             unique: true,
+            lowercase: true,
+            match: [/\S+@\S+\.\S+/, 'Invalid email format'],
         },
         password: {
             type: String,
             required: true,
         },
-        profileImageUrl: {
+        role: {  
             type: String,
             enum: ['admin', 'member'],
             default: 'member'
+        },
+        profileImageUrl: {
+            type: String,
         }
     },
     { timestamps: true }

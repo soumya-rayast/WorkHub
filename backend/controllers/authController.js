@@ -4,7 +4,10 @@ const jwt = require('jsonwebtoken');
 
 // Generate JWT Token 
 const generateToken = (userId) => {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' })
+    return jwt.sign(
+        { id: userId },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' })
 };
 
 // @desc Register a new user
@@ -18,10 +21,16 @@ const registerUser = async (req, res) => {
         if (userExists) {
             return res.status(400).json({ message: 'User already exists' });
         }
+        // Password Validation 
+        const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
+        if (!password.test(password)) {
+            return res.status(400).json({ message: 'Password to weak'});
+        }
+        
         // Determine user role : Admin id correct token is provided , otherwise member
         let role = 'member';
         if (adminInviteToken && adminInviteToken === process.env.ADMIN_INVITE_TOKEN) {
-            role = "member";
+            role = "admin";
         }
         // Hash Password 
         const salt = await bcrypt.genSalt(10);
@@ -41,7 +50,7 @@ const registerUser = async (req, res) => {
             name: user.name,
             role: user.role,
             profileImageUrl: user.profileImageUrl,
-            token: generateToken(user._id),
+            token: generateToken(user._id, user.role),
         });
     } catch (error) {
         return res.status(500).json({ message: "Server Error", error: error.message });
@@ -49,8 +58,8 @@ const registerUser = async (req, res) => {
 };
 
 // @desc Login user
-// @route POST /api/auth/register
-//@access Public
+// @route POST /api/auth/login
+// @access Public
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -70,7 +79,7 @@ const loginUser = async (req, res) => {
             email: user.email,
             role: user.role,
             profileImageUrl: user.profileImageUrl,
-            token: generateToken(user._id)
+            token: generateToken(user._id, user.role),
         })
     } catch (error) {
         return res.status(500).json({ message: "Server Error", error: error.message });
@@ -85,6 +94,13 @@ const getUserProfile = async (req, res) => {
         const user = await User.findById(req.user.id).select('-password');
         if (!user) {
             return res.status(404).json({ message: "User not found" });
+        }
+        if (req.body.email) {
+            const emailExists = await User.findOne({ email: req.body.email });
+            if (emailExists && emailExists._id.toString() !== req.user.id) {
+                return res.status(400).json({ message: "Email already in use" });
+            }
+            user.email = req.body.email;
         }
         res.json(user);
     } catch (error) {

@@ -4,7 +4,9 @@ const { exportTasksReport, exportUsersReport } = require('../controllers/reportC
 
 const router = express.Router();
 
+//Export all tasks as Excel
 router.get('/export/tasks', protect, adminOnly, exportTasksReport);
+//Export user-task report as Excel
 router.get('/export/users', protect, adminOnly, exportUsersReport);
 
-modules.exports = router;
+module.exports = router;

@@ -6,11 +6,15 @@ const upload = require('../middlewares/uploadMiddleware');
 const router = express.Router();
 
 //Auth Routes 
+// Register a new user 
 router.post('/register', registerUser);
+// Login user
 router.post("/login", loginUser);
+// Get user Profile
 router.get('/profile', protect, getUserProfile);
-router.get('/profile', protect, updateUserProfile);
-
+// Update User Profile
+router.put('/profile', protect, updateUserProfile);
+// Upload Profile image
 router.post('/upload-image', upload.single('image'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: "No file Uploaded" });

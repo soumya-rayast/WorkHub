@@ -5,7 +5,7 @@ const User = require('../models/User');
 const protect = async (req, res, next) => {
     try {
         let token = req.headers.authorization;
-        if (token && token.startsWith('Bearers')) {
+        if (token && token.startsWith('Bearer ')) {
             token = token.split(' ')[1];
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             req.user = await User.findById(decoded.id).select('-password');
@@ -23,7 +23,7 @@ const adminOnly = (req, res, next) => {
     if (req.user && req.user.role === 'admin') {
         next();
     } else {
-        res.status(404).json({ message: 'Access denied, admin only ' })
+        res.status(403).json({ message: 'Access denied, admin only' })
     }
 }
 

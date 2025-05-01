@@ -12,12 +12,12 @@ const getTasks = async (req, res) => {
         }
         let tasks;
         if (req.user.role === 'admin') {
-            tasks = await task.find(filter).populate(
+            tasks = await Task.find(filter).populate(
                 'assignedTo',
                 "name email profileImageUrl"
             );
         } else {
-            tasks = await task.find({ ...filter, assignedTo: req.user._id }).populate(
+            tasks = await Task.find({ ...filter, assignedTo: req.user._id }).populate(
                 'assignedTo',
                 "name email profileImageUrl"
             )
@@ -86,6 +86,9 @@ const getTaskById = async (req, res) => {
 // @access Private (Admin)
 const createTask = async (req, res) => {
     try {
+        if (req.user.role !== 'admin') {
+            return re.json(403).json({ message: "Only admins can create tasks" });
+        }
         const {
             title,
             description,
@@ -95,8 +98,8 @@ const createTask = async (req, res) => {
             attachments,
             todoChecklist,
         } = req.body;
-        if (!Array.isArray(assignedTo)) {
-            return res.status(400).json({ message: "assignedTo must be an array of user IDs" })
+        if (!title || !Array.isArray(assignedTo) || assignedTo.length === 0) {
+            return res.status(400).json({ message: "Title and assignedTo (array of user IDs) are required" })
         }
 
         const task = await Task.create({
@@ -105,7 +108,7 @@ const createTask = async (req, res) => {
             priority,
             dueDate,
             assignedTo,
-            createdAt: req.user._id,
+            createdBy: req.user._id,
             todoChecklist,
             attachments,
         })
@@ -124,6 +127,11 @@ const updateTask = async (req, res) => {
 
         if (!task) return res.status(404).json({ message: 'Task not found' });
 
+        // Only admin or assigned users can update
+        if (req.user.role !== 'admin' && !task.assignedTo.map(id => id.toString()).includes(req.user._id.toString())) {
+            return res.status(403).json({ message: 'Not Authorized to update this task' });
+        }
+        // Update fields if provided
         task.title = req.body.title || task.title;
         task.description = req.body.description || task.description;
         task.priority = req.body.priority || task.priority;
@@ -149,10 +157,13 @@ const updateTask = async (req, res) => {
 // @access Private (Admin)
 const deleteTask = async (req, res) => {
     try {
-        const task = await Task.status(404).json({ message: 'Task not found' });
+        const task = await Task.findById(req.params.id);
+        if (!task) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
 
         await task.deleteOne();
-        res.json({ message: "Task deleted successfully" });
+        res.status(404).json({ message: "Task deleted successfully" });
     } catch (error) {
         res.status(500).json({ message: "Server Error", error: error.message })
     }
@@ -171,6 +182,12 @@ const updateTaskStatus = async (req, res) => {
         );
         if (!isAssigned && req.user.role !== 'admin') {
             return res.status(403).json({ message: "Not Authorized" });
+        };
+
+        const allowedStatuses = ['Pending', 'In Progress', 'Completed'];
+        const newStatus = req.body.status;
+        if(newStatus && !allowedStatuses.includes(newStatus)){
+            return res.status(400).json({message : "Invalid status value"});
         }
 
         task.status = req.body.status || task.status;
@@ -248,7 +265,7 @@ const getDashboardData = async (req, res) => {
         const taskDistributionRaw = await Task.aggregate({
             $group: {
                 _id: '$status',
-                count: { $num: 1 },
+                count: { $sum: 1 },
             }
         });
 
